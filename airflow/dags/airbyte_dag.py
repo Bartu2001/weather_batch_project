@@ -1,37 +1,35 @@
 from airflow import DAG
+from airflow.providers.airbyte.operators.airbyte import AirbyteTriggerSyncOperator
 from airflow.operators.bash import BashOperator
-from airflow.providers.http.operators.http import SimpleHttpOperator
 from airflow.utils.dates import days_ago
-import json
 
 default_args = {
-    'start_date': days_ago(1),
+    'owner': 'airflow',
+    'start_date': days_ago(1)
 }
 
 with DAG(
-    dag_id='real_airbyte_dbt_weather_dag',
+    dag_id='real_airbyte_to_dbt_pipeline',
     default_args=default_args,
     schedule_interval='@daily',
     catchup=False,
-    description='Runs Airbyte sync and DBT transformation for weather data'
+    description='Trigger Airbyte then run DBT in container'
 ) as dag:
 
-    trigger_airbyte_sync = SimpleHttpOperator(
-        task_id='trigger_airbyte_sync',
-        method='POST',
-        http_conn_id='airbyte_api',
-        endpoint='api/v1/connections/sync',
-        headers={"Content-Type": "application/json"},
-        data=json.dumps({"connectionId": "c9346af9-0bcf-4576-a657-b5e00a3e8b1e"})
+    # 1. Airbyte Sync
+    airbyte_sync = AirbyteTriggerSyncOperator(
+        task_id='airbyte_sync',
+        airbyte_conn_id='airbyte_connection',
+        connection_id='c9346af9-0bcf-4576-a657-b5e00a3e8b1e',
+        asynchronous=False,
+        timeout=3600,
+        wait_seconds=5,
     )
 
-    run_dbt_models = BashOperator(
-        task_id='run_dbt_models',
-        bash_command="""
-        cd /usr/app && dbt run --profiles-dir /root/.dbt
-        """,
-        docker_url="unix://var/run/docker.sock",
-        network_mode="bridge"
+    # 2. DBT Run inside container
+    dbt_run = BashOperator(
+        task_id='dbt_run',
+        bash_command='docker exec weather_dbt dbt run --project-dir /usr/app --profiles-dir /root/.dbt'
     )
 
-    trigger_airbyte_sync >> run_dbt_models
+    airbyte_sync >> dbt_run
