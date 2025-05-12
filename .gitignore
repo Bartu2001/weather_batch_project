@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.env
+dbt/target/
+dbt/dbt_modules/
+.airbyte/
+*.log
+*.zip
+.trino/
+pgdata/
+minio_data/

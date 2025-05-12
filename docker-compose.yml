@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  weather_postgres:
+    image: postgres:13
+    container_name: weather_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: weather_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  dbt:
+    image: ghcr.io/dbt-labs/dbt-postgres:1.7.9
+    container_name: weather_dbt
+    platform: linux/amd64
+    volumes:
+      - ./dbt:/usr/app
+      - ./dbt/profiles:/root/.dbt
+    working_dir: /usr/app
+    entrypoint: ["tail", "-f", "/dev/null"]
+    depends_on:
+      - weather_postgres
+
+  minio:
+    image: minio/minio
+    container_name: weather_minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+
+  metabase:
+    image: metabase/metabase
+    container_name: weather_metabase
+    ports:
+      - "3000:3000"
+    environment:
+      MB_DB_TYPE: h2
+    depends_on:
+      - weather_postgres
+
+  trino:
+    image: trinodb/trino:latest
+    container_name: weather_trino
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./trino/etc:/etc/trino
+    depends_on:
+      - weather_postgres
+
+volumes:
+  pgdata:
+  minio_data:

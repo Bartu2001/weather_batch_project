@@ -1,0 +1,12 @@
+weather_dbt_project:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: host.docker.internal
+      user: airflow
+      password: airflow
+      port: 5433
+      dbname: weather_db
+      schema: public
+
