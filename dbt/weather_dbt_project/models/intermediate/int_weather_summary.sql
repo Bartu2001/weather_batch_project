@@ -3,7 +3,7 @@
     tags = ['intermediate']
 ) }}
 
--- Amaç: Günlük şehir bazlı hava durumu özet metriklerini hesaplamak
+-- Purpose: Calculate daily city-based weather summary metrics
 
 with base as (
 
